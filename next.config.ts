@@ -22,6 +22,9 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/**": ["./content/**/*"],
+  },
   typescript: {
     // نادیده گرفتن خطاهای تایپ‌اسکریپت در بیلد
     ignoreBuildErrors: true,
