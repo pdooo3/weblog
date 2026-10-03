@@ -1,23 +1,6 @@
 // app/api/posts/[slug]/comments/route.ts
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ slug: string }> | { slug: string } }
-) {
-  try {
-    const { slug } = await params;
-    const comments = await prisma.comment.findMany({
-      where: { postSlug: slug },
-      orderBy: { createdAt: 'desc' },
-    });
-    return NextResponse.json(comments);
-  } catch (error) {
-    console.error('Error fetching comments:', error);
-    return NextResponse.json({ error: 'Failed to fetch comments' }, { status: 500 });
-  }
-}
 
 export async function POST(
   req: Request,
@@ -35,15 +18,7 @@ export async function POST(
       );
     }
 
-    const newComment = await prisma.comment.create({
-      data: {
-        postSlug: slug,
-        author: author,
-        content: content,
-      },
-    });
 
-    return NextResponse.json(newComment, { status: 201 });
   } catch (error) {
     console.error('Error creating comment:', error);
     return NextResponse.json(

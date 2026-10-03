@@ -1,11 +1,11 @@
 // components/LikeButton.tsx
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 export default function LikeButton({ slug }: { slug: string }) {
-  const t = useTranslations('Post');
+  const t = useTranslations("Post");
   const [likes, setLikes] = useState<number>(0);
   const [liked, setLiked] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -14,7 +14,6 @@ export default function LikeButton({ slug }: { slug: string }) {
     // آدرس دقیق بر اساس ساختار پوشه‌های شما
     fetch(`/api/posts/${slug}/like`)
       .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch likes');
         return res.json();
       })
       .then((data) => {
@@ -30,7 +29,7 @@ export default function LikeButton({ slug }: { slug: string }) {
 
     try {
       const res = await fetch(`/api/posts/${slug}/like`, {
-        method: 'POST',
+        method: "POST",
       });
       if (res.ok) {
         const data = await res.json();
@@ -50,11 +49,11 @@ export default function LikeButton({ slug }: { slug: string }) {
       disabled={loading}
       className={`px-4 py-2 rounded-lg font-medium transition-colors ${
         liked
-          ? 'bg-red-500 text-white hover:bg-red-600'
-          : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-300 dark:hover:bg-zinc-700'
+          ? "bg-red-500 text-white hover:bg-red-600"
+          : "bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-300 dark:hover:bg-zinc-700"
       }`}
     >
-      ❤️ {likes} {liked ? t('liked') : t('like')}
+      ❤️ {likes} {liked ? t("liked") : t("like")}
     </button>
   );
 }

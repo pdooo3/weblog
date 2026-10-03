@@ -1,0 +1,109 @@
+---
+title: ده ترفند TypeScript که کد شما را حرفه‌ای‌تر می‌کند
+---
+
+## ده ترفند TypeScript که کد شما را حرفه‌ای‌تر می‌کند
+
+TypeScript فقط «جاوااسکریپت با تایپ» نیست؛ یک **سیستم طراحی خطاها در زمان کامپایل** است. در این مقاله چند ترفند کاربردی را مرور می‌کنیم که در پروژه‌های واقعی روزانه به کار می‌آیند.
+
+### ۱. از `unknown` به جای `any` استفاده کنید
+
+`any` عملاً سیستم تایپ را خاموش می‌کند، اما `unknown` شما را مجبور می‌کند قبل از استفاده، تایپ را بررسی کنید:
+
+```typescript
+function parseJson(input: string): unknown {
+  return JSON.parse(input);
+}
+
+const data = parseJson('{"name":"سارا"}');
+if (typeof data === "object" && data !== null && "name" in data) {
+  console.log((data as { name: string }).name);
+}
+```
+
+### ۲. انواع ابزاری (Utility Types)
+
+انواعی مثل `Partial` و `Pick` و `Omit` کد شما را به شدت تمیزتر می‌کنند:
+
+```typescript
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  password: string;
+}
+
+type PublicUser = Omit<User, "password">;
+type UserDraft = Partial<User>;
+
+function sanitize(user: User): PublicUser {
+  const { password, ...rest } = user;
+  return rest;
+}
+```
+
+### ۳. Literal Union به جای Enum
+
+در بیشتر موارد، `Union Type` سبک‌تر و انعطاف‌پذیرتر از `enum` است:
+
+```typescript
+type Status = "draft" | "published" | "archived";
+
+function canEdit(status: Status): boolean {
+  return status === "draft";
+}
+```
+
+### ۴. توابع Type Guard بنویسید
+
+با یک Type Guard سفارشی، شرط‌های تکراری را خلاصه کنید:
+
+```typescript
+interface Post {
+  title: string;
+  tags?: string[];
+}
+
+function hasTags(post: Post): post is Post & { tags: string[] } {
+  return Array.isArray(post.tags) && post.tags.length > 0;
+}
+
+if (hasTags(post)) {
+  console.log(post.tags.join(", "));
+}
+```
+
+### ۵. Generic ها را ساده شروع کنید
+
+Generics وقتی جذاب می‌شوند که خروجی دقیقاً از جنس ورودی باشد:
+
+```typescript
+function firstOrNull<T>(items: T[]): T | undefined {
+  return items.length > 0 ? items[0] : undefined;
+}
+
+const first = firstOrNull([1, 2, 3]); // تایپ: number | undefined
+```
+
+### ۶. پیکربندی سخت‌گیرانه در `tsconfig`
+
+تنظیمات زیر را جدی بگیرید:
+
+- `strict: true` — فعال‌سازی تمام بررسی‌های سخت‌گیرانه
+- `noUncheckedIndexedAccess` — جلوگیری از خطاهای دسترسی به آرایه
+- `noImplicitOverride` — اجبار به نوشتن `override` در کلاس‌ها
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true
+  }
+}
+```
+
+### ۷. جمع‌بندی
+
+TypeScript زمانی ارزش واقعی‌اش را نشان می‌دهد که تنظیمات سخت‌گیرانه داشته باشید و از انواع ابزاری استفاده کنید. به جای مبارزه با کامپایلر، از آن به عنوان یک **جفت پرواز دوم** استفاده کنید که خطاها را قبل از رسیدن به Production می‌گیرد.

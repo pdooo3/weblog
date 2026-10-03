@@ -1,0 +1,119 @@
+---
+title: ساخت سرویس‌های مقیاس‌پذیر با Go در معماری مایکروسرویس
+---
+
+## ساخت سرویس‌های مقیاس‌پذیر با Go در معماری مایکروسرویس
+
+وقتی پای صحبت از **همزمانی** و **مقیاس‌پذیری** به میان می‌آید، زبان Go تقریباً همیشه جزو گزینه‌های اول است. در این مقاله یاد می‌گیریم چطور یک سرویس سبک و سریع با Go بنویسیم و آن را در معماری مایکروسرویس جا بدهیم.
+
+### ۱. چرا Go برای مایکروسرویس؟
+
+- **کامپایل سریع** و خروجی باینری تک‌فایلی؛ بدون نیاز به Runtime سنگین.
+- **Goroutine** ها برای مدیریت هزاران درخواست همزمان.
+- **پکیج استاندارد قوی** مثل `net/http` که بدون فریم‌ورک اضافه هم کافی است.
+
+### ۲. یک REST API مینیمال
+
+بیایید یک سرویس ساده مدیریت سفارش بنویسیم:
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+)
+
+type Order struct {
+	ID    int     `json:"id"`
+	Item  string  `json:"item"`
+	Price float64 `json:"price"`
+}
+
+var orders = []Order{
+	{ID: 1, Item: "لپ‌تاپ", Price: 45000},
+}
+
+func ordersHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(orders); err != nil {
+		log.Printf("encoding error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+}
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/orders", ordersHandler)
+
+	log.Println("سرویس سفارش روی پورت 8080 اجرا شد")
+	if err := http.ListenAndServe(":8080", mux); err != nil {
+		log.Fatal(err)
+	}
+}
+```
+
+به **بک‌تیک‌ها** در تعریف ساختار دقت کنید؛ همان تگ‌های JSON هستند که کنترل کامل روی شکل خروجی به شما می‌دهند.
+
+### ۳. همزمانی با Goroutine و Channel
+
+قدرت واقعی Go در مدل همزمانی آن است. مثال زیر چند «کارگر» را به صورت موازی اجرا می‌کند:
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+func worker(id int, jobs <-chan int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for job := range jobs {
+		time.Sleep(100 * time.Millisecond) // شبیه‌سازی کار سنگین
+		fmt.Printf("کارگر %d پردازش سفارش %d را تمام کرد\n", id, job)
+	}
+}
+
+func main() {
+	jobs := make(chan int, 100)
+	var wg sync.WaitGroup
+
+	for i := 1; i <= 3; i++ {
+		wg.Add(1)
+		go worker(i, jobs, &wg)
+	}
+
+	for j := 1; j <= 9; j++ {
+		jobs <- j
+	}
+	close(jobs)
+	wg.Wait()
+}
+```
+
+در معماری مایکروسرویس، این الگو برای **پردازش صف پیام‌ها** یا **فراخوانی موازی سرویس‌های دیگر** فوق‌العاده است.
+
+### ۴. بررسی سلامت سرویس
+
+هر مایکروسرویس حرفه‌ای به Endpoint مربوط به `healthcheck` نیاز دارد:
+
+```go
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("OK"))
+}
+```
+
+سپس در `mux` ثبتش کنید:
+
+```go
+mux.HandleFunc("/health", healthHandler)
+```
+
+### ۵. جمع‌بندی
+
+Go به شما اجازه می‌دهد سرویس‌هایی بنویسید که با منابع حداقلی، حداکثر بار را تحمل می‌کنند. ترکیب `net/http` و Goroutine ها برای شروع کافی است و هر وقت پروژه بزرگ شد، می‌توانید به سمت فریم‌ورک‌هایی مثل `chi` یا `echo` بروید.

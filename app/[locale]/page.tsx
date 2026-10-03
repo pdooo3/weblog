@@ -1,9 +1,8 @@
 // app/[locale]/page.tsx
-import { reader } from '@/lib/keystatic-reader';
-import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
-import { prisma } from '@/lib/prisma';
-import { MobileFooter } from '@/components/HeroHeader'; 
+import { reader } from "@/lib/keystatic-reader";
+import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
+import { MobileFooter } from "@/components/HeroHeader";
 interface PageProps {
   params: Promise<{ locale: string }>;
 }
@@ -15,11 +14,11 @@ type CountItem = {
 };
 
 function getExcerpt(content: any, maxLength = 200): string {
-  if (!content) return '';
+  if (!content) return "";
 
-  let plainText = '';
+  let plainText = "";
 
-  if (typeof content === 'string') {
+  if (typeof content === "string") {
     plainText = content;
   } else if (Array.isArray(content)) {
     const extractText = (nodes: any[]): string => {
@@ -27,30 +26,32 @@ function getExcerpt(content: any, maxLength = 200): string {
         .map((node) => {
           if (node.text) return node.text;
           if (node.children) return extractText(node.children);
-          return '';
+          return "";
         })
-        .join(' ');
+        .join(" ");
     };
     plainText = extractText(content);
   }
 
   const cleaned = plainText
-    .replace(/[#*`_~>[\]()!]/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/[#*`_~>[\]()!]/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 
   if (cleaned.length <= maxLength) return cleaned;
-  return cleaned.slice(0, maxLength).trim() + '...';
+  return cleaned.slice(0, maxLength).trim() + "...";
 }
 
 // محاسبه زمان تقریبی مطالعه (بر اساس ۲۰۰ کلمه در دقیقه)
 function estimateReadingTime(content: any): number {
-  let text = '';
-  if (typeof content === 'string') {
+  let text = "";
+  if (typeof content === "string") {
     text = content;
   } else if (Array.isArray(content)) {
     const extractText = (nodes: any[]): string =>
-      nodes.map((n) => n.text || (n.children ? extractText(n.children) : '')).join(' ');
+      nodes
+        .map((n) => n.text || (n.children ? extractText(n.children) : ""))
+        .join(" ");
     text = extractText(content);
   }
 
@@ -59,22 +60,27 @@ function estimateReadingTime(content: any): number {
 }
 
 function formatDate(dateLike: string | Date | undefined, locale: string) {
-  if (!dateLike) return '—';
-  const d = typeof dateLike === 'string' ? new Date(dateLike) : dateLike;
+  if (!dateLike) return "—";
+  const d = typeof dateLike === "string" ? new Date(dateLike) : dateLike;
 
   if (Number.isNaN(d.getTime())) return String(dateLike);
 
-  return new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
+  return new Intl.DateTimeFormat(locale === "fa" ? "fa-IR" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
   }).format(d);
 }
 
 // آیکون‌های مینیمال
 function ClockIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" className="fill-none stroke-current stroke-2">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      className="fill-none stroke-current stroke-2"
+    >
       <path d="M12 8v5l3 2" />
       <path d="M12 22a10 10 0 1 0-10-10 10 10 0 0 0 10 10z" />
     </svg>
@@ -83,7 +89,12 @@ function ClockIcon() {
 
 function HeartIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" className="fill-none stroke-current stroke-2">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      className="fill-none stroke-current stroke-2"
+    >
       <path d="M12 21s-7-4.4-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.6-9.5 9-9.5 9z" />
     </svg>
   );
@@ -91,7 +102,12 @@ function HeartIcon() {
 
 function CommentIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" className="fill-none stroke-current stroke-2">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      className="fill-none stroke-current stroke-2"
+    >
       <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
     </svg>
   );
@@ -99,53 +115,39 @@ function CommentIcon() {
 
 export default async function HomePage({ params }: PageProps) {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'Posts' });
+  const t = await getTranslations({ locale, namespace: "Posts" });
   const rawPosts = await reader.collections.posts.all();
 
   // گرفتن همه اسلاگ‌ها برای کوئری دیتابیس
   const slugs = rawPosts.map((p) => p.slug);
 
   // دریافت آمار لایک و کامنت تمام پست‌ها به صورت تجمیعی از دیتابیس Prisma
-  const [likeCounts, commentCounts] = await Promise.all([
-    prisma.like.groupBy({
-      by: ['postSlug'],
-      where: { postSlug: { in: slugs } },
-      _count: { _all: true },
-    }),
-    prisma.comment.groupBy({
-      by: ['postSlug'],
-      where: { postSlug: { in: slugs } },
-      _count: { _all: true },
-    }),
-  ]);
-
-  // تبدیل آمارها به Map برای دسترسی سریع O(1)
-  const likesMap = new Map(likeCounts.map((item : CountItem) => [item.postSlug, item._count._all]));
-  const commentsMap = new Map(commentCounts.map((item : CountItem) => [item.postSlug, item._count._all]));
 
   const posts = await Promise.all(
     rawPosts.map(async (post) => {
-      let fullContent: any = '';
-      if (typeof post.entry.content === 'function') {
+      let fullContent: any = "";
+      if (typeof post.entry.content === "function") {
         fullContent = await post.entry.content();
       } else {
-        fullContent = post.entry.content || (post.entry as any).description || '';
+        fullContent =
+          post.entry.content || (post.entry as any).description || "";
       }
 
-      const excerpt = getExcerpt((post.entry as any).description || fullContent, 200);
+      const excerpt = getExcerpt(
+        (post.entry as any).description || fullContent,
+        200,
+      );
       const readingTime = estimateReadingTime(fullContent);
 
       return {
         ...post,
         excerpt,
         readingTime,
-        likes: likesMap.get(post.slug) || 0,
-        commentsCount: commentsMap.get(post.slug) || 0,
       };
-    })
+    }),
   );
 
-  const isFa = locale === 'fa';
+  const isFa = locale === "fa";
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
@@ -153,7 +155,7 @@ export default async function HomePage({ params }: PageProps) {
       <div className="flex items-center gap-3 mb-8">
         <span className="w-2.5 h-2.5 rounded-full bg-accent-orange" />
         <h2 className="text-2xl sm:text-3xl font-extrabold text-text-main tracking-tight">
-          {t('title')}
+          {t("title")}
         </h2>
       </div>
 
@@ -181,22 +183,26 @@ export default async function HomePage({ params }: PageProps) {
                   <span className="inline-flex items-center gap-1.5">
                     <ClockIcon />
                     <span>
-                      {post.readingTime} {isFa ? 'دقیقه مطالعه' : 'min read'}
+                      {post.readingTime} {isFa ? "دقیقه مطالعه" : "min read"}
                     </span>
                   </span>
 
                   <span className="opacity-40">•</span>
 
-                  <span className="inline-flex items-center gap-1.5" title="Likes">
+                  <span
+                    className="inline-flex items-center gap-1.5"
+                    title="Likes"
+                  >
                     <HeartIcon />
-                    <span>{post.likes}</span>
                   </span>
 
                   <span className="opacity-40">•</span>
 
-                  <span className="inline-flex items-center gap-1.5" title="Comments">
+                  <span
+                    className="inline-flex items-center gap-1.5"
+                    title="Comments"
+                  >
                     <CommentIcon />
-                    <span>{post.commentsCount}</span>
                   </span>
                 </div>
 
@@ -213,9 +219,9 @@ export default async function HomePage({ params }: PageProps) {
                     href={`/posts/${post.slug}`}
                     className="text-accent-orange hover:opacity-80 text-sm font-semibold inline-flex items-center gap-2 transition-all group/btn"
                   >
-                    <span>{isFa ? 'ادامه مطلب' : 'Read More'}</span>
+                    <span>{isFa ? "ادامه مطلب" : "Read More"}</span>
                     <span className="transition-transform group-hover/btn:translate-x-1 duration-200">
-                      {isFa ? '←' : '→'}
+                      {isFa ? "←" : "→"}
                     </span>
                   </Link>
                 </div>
@@ -238,7 +244,7 @@ export default async function HomePage({ params }: PageProps) {
           );
         })}
       </div>
-        <MobileFooter locale={locale} />
+      <MobileFooter locale={locale} />
     </div>
   );
 }

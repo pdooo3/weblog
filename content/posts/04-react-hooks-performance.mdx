@@ -1,0 +1,115 @@
+---
+title: بهینه‌سازی عملکرد در React با هوک‌ها؛ از رندر اضافی تا Memo
+---
+
+## بهینه‌سازی عملکرد در React با هوک‌ها؛ از رندر اضافی تا Memo
+
+اگر اپلیکیشن React شما با گذر زمان کند شده، احتمالاً مشکل از **رندرهای اضافی** است. در این مقاله یاد می‌گیریم با `useMemo` و `useCallback` و `React.memo` عملکرد کامپوننت‌ها را بهبود دهیم.
+
+### ۱. مشکل چیست؟
+
+هر بار که State یک کامپوننت تغییر کند، کل تابع کامپوننت دوباره اجرا می‌شود. اگر محاسبات سنگین یا آبجکت‌های جدید در بدنه کامپوننت بسازید، فرزندان هم بی‌دلیل رندر می‌شوند:
+
+```jsx
+function ProductList({ products, onSelect }) {
+  // این تابع در هر رندر از نو ساخته می‌شود
+  const handleClick = (id) => onSelect(id);
+
+  return products.map((p) => (
+    <ProductRow key={p.id} product={p} onSelect={handleClick} />
+  ));
+}
+```
+
+### ۲. راه‌حل: `useCallback`
+
+با `useCallback` مرجع تابع بین رندرها ثابت می‌ماند:
+
+```jsx
+import { useCallback } from "react";
+
+function ProductList({ products, onSelect }) {
+  const handleClick = useCallback(
+    (id) => onSelect(id),
+    [onSelect]
+  );
+
+  return products.map((p) => (
+    <ProductRow key={p.id} product={p} onSelect={handleClick} />
+  ));
+}
+```
+
+### ۳. محاسبات سنگین با `useMemo`
+
+اگر فیلتر یا مرتب‌سازی روی داده‌های بزرگ انجام می‌دهید، حتماً نتیجه را Memo کنید:
+
+```jsx
+import { useMemo } from "react";
+
+function FilteredList({ items, query }) {
+  const filtered = useMemo(
+    () => items.filter((i) => i.title.includes(query)),
+    [items, query]
+  );
+
+  return (
+    <ul>
+      {filtered.map((item) => (
+        <li key={item.id}>{item.title}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+### ۴. جلوگیری از رندر فرزندان با `React.memo`
+
+```jsx
+import { memo } from "react";
+
+const ProductRow = memo(function ProductRow({ product, onSelect }) {
+  console.log("رندر شد:", product.title);
+  return (
+    <div className="row" onClick={() => onSelect(product.id)}>
+      {product.title}
+    </div>
+  );
+});
+```
+
+### ۵. هوک سفارشی برای مدیریت درخواست‌ها
+
+یک `useFetch` ساده می‌تواند منطق تکراری را حذف کند:
+
+```jsx
+import { useEffect, useState } from "react";
+
+function useFetch(url) {
+  const [state, setState] = useState({ data: null, loading: true, error: null });
+
+  useEffect(() => {
+    let active = true;
+    setState({ data: null, loading: true, error: null });
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => active && setState({ data, loading: false, error: null }))
+      .catch((err) => active && setState({ data: null, loading: false, error: err }));
+
+    return () => {
+      active = false;
+    };
+  }, [url]);
+
+  return state;
+}
+```
+
+### ۶. جمع‌بندی
+
+- ابتدا با ابزار **Profiler** پیدا کنید مشکل کجاست.
+- همه‌جا Memo نکنید؛ فقط برای محاسبات سنگین و props های پایدار.
+- هوک‌های سفارشی، کد را خواناتر و قابل تست‌تر می‌کنند.
+
+بهینه‌سازی بدون اندازه‌گیری، حدس و گمان است؛ اول اندازه بگیرید، بعد بهینه کنید!
